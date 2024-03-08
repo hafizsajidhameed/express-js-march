@@ -32,7 +32,18 @@ app.get("/", (req, res) => {
 });
 
 app.get('/api/users', (req, res) => {
-  res.status(200).send(users);
+
+  // Find the user using the username
+  const foundUser = users.find(user => user.username === req.query.name);
+
+  // Handle different scenarios:
+  if (foundUser) {
+    // User found, send the user object as a response
+    res.json(foundUser);
+  } else {
+    // User not found, send an appropriate response (e.g., 404 Not Found)
+    res.status(404).json({ message: 'User not found' });
+  }
 });
 
 app.get('/api/users/:id', (req, res) => {
@@ -43,28 +54,13 @@ app.get('/api/users/:id', (req, res) => {
   return res.send(findUser)
 });
 
-// app.get('/api/users', (req, res) => {
-//     // Parse the query string
-//     const queryParams = queryString.parse(req.query);
-  
-//     // Extract the desired username from the query string
-//     const username = queryParams.name;
-  
-//     // Find the user using the username
-//     const foundUser = users.find(user => user.username === username);
-  
-//     // Handle different scenarios:
-//     if (foundUser) {
-//       // User found, send the user object as a response
-//       res.json(foundUser);
-//     } else {
-//       // User not found, send an appropriate response (e.g., 404 Not Found)
-//       res.status(404).json({ message: 'User not found' });
-//     }
-//   });
+
 
 app.get('/api/products', (req, res) => {
-  res.send(products)
+  const productItem  = req.query.item;
+  const findProduct =  products.find((product) => product.item === productItem);
+  if(findProduct) return  res.json(findProduct)
+  else  return res.json({message: "product not found"})
 })
 
 app.get('/api/products/:id', (req, res)=> {
