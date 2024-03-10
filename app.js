@@ -42,9 +42,18 @@ app.get('/api/users', (req, res) => {
     res.json(foundUser);
   } else {
     // User not found, send an appropriate response (e.g., 404 Not Found)
-    res.status(404).json({ message: 'User not found' });
+    res.send(users);
   }
 });
+
+// users post request
+app.post('/api/users', (req, res)=> {
+  console.log(req.body)
+  const {body} = req;
+  const newUser = {id: users[users.length - 1].id + 1, ...body};
+  users.push(newUser);
+  return res.status(201).send(users);
+})
 
 app.get('/api/users/:id', (req, res) => {
   const parsedId = parseInt(req.params.id);
@@ -53,6 +62,19 @@ app.get('/api/users/:id', (req, res) => {
   if(!findUser) return res.sendStatus(404)
   return res.send(findUser)
 });
+
+// put request for updating the object
+// app.put('/api/users/:id', (req, res)=> {
+//   const {body, params: {id},} = req;
+//   const parsedId  =  parseInt(id);
+//   if(isNaN(parsedId)) return res.status(400).send('Bad Request');
+
+//   const findUserIndex = users.findIndex((user)=> user.id === parsedId);
+
+//   if(findUserIndex === -1 ) return res.status(404).send("Not Found");
+//   users [findUserIndex] = {id: parsedId, ...body };
+//   return res.status(200).send(users[findUserIndex]);
+// })
 
 
 
