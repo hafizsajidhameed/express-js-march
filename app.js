@@ -64,18 +64,28 @@ app.get('/api/users/:id', (req, res) => {
 });
 
 // put request for updating the object
-// app.put('/api/users/:id', (req, res)=> {
-//   const {body, params: {id},} = req;
-//   const parsedId  =  parseInt(id);
-//   if(isNaN(parsedId)) return res.status(400).send('Bad Request');
+app.put('/api/users/:id', (req, res)=> {
+  const {body, params: {id},} = req;
+  const parsedId  =  parseInt(id);
+  if(isNaN(parsedId)) return res.status(400).send('Bad Request');
 
-//   const findUserIndex = users.findIndex((user)=> user.id === parsedId);
+  const findUserIndex = users.findIndex((user)=> user.id === parsedId);
 
-//   if(findUserIndex === -1 ) return res.status(404).send("Not Found");
-//   users [findUserIndex] = {id: parsedId, ...body };
-//   return res.status(200).send(users[findUserIndex]);
-// })
+  if(findUserIndex === -1 ) return res.status(404).send("Not Found");
+  users[findUserIndex] = {id: parsedId, ...body };
+  return res.status(200).send(users[findUserIndex]);
+})
 
+//patch request for updating partially
+app.patch('/api/users/:id', (req,res)=>{
+  const { body, params:{id}} = req;
+  const parsedId = parseInt(id);
+ if(isNaN(parsedId))return res.status(400).send('Invalid Id');
+ const findUserIndex = users.findIndex(user=> user.id===parsedId);
+ if(findUserIndex === -1) return res.status(404);
+ users[findUserIndex] = {...users[findUserIndex],...body};
+ res.status(200).json(users[findUserIndex])
+});
 
 
 app.get('/api/products', (req, res) => {
