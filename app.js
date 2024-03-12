@@ -86,6 +86,17 @@ app.patch('/api/users/:id', (req,res)=>{
  users[findUserIndex] = {...users[findUserIndex],...body};
  res.status(200).json(users[findUserIndex])
 });
+// delete method to remove an item from array
+app.delete("/api/users/:id", (req, res) =>{
+  const {params: {id}} = req;
+  const parsedId  = parseInt(id);
+  if(isNaN(parseInt(id))) return res.status(400).send("Invalid ID")
+  const findUserIndex = users.indexOf(users.find(user => user.id === parsedId));
+if(findUserIndex === -1) return res.status(404).send("user not found");
+else {
+    users.splice(findUserIndex, 1);
+    res.status(200).send(`The User with the id ${id} has been deleted`)};
+    });
 
 
 app.get('/api/products', (req, res) => {
