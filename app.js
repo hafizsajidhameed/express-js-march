@@ -1,7 +1,10 @@
 import express from "express";
 const app = express();
 import queryString from 'query-string';
+import { query, validationResult, body, matchedData, checkSchema } from "express-validator";
 const PORT = process.env.PORT || 3000;
+import { createVlidationSchema } from "./validation/validationShema.js";
+
 
 const users = [
   { id: 1, username: "sajid", displayname: "Sajid" },
@@ -45,16 +48,23 @@ app.use(middleware1)
 
 // middleware example2
 const middleware2 = (req, res, next)=> {
-  console.log('object addedk into array successfully')
+  console.log('object added into array successfully')
   next()
 }
 app.get("/", (req, res) => {
     console.log(req.query);
-  res.status(201).send({message : 'Hello World'})
+  res.status(201).send('this is / path')
 });
 
-app.get('/api/users', (req, res) => {
-
+app.get('/api/users', query('name')
+.isString()
+.notEmpty()
+.withMessage('must not be empty')
+.isLength({min: 3, max: 10})
+.withMessage('must be at least 3 characters'), (req, res) => {
+  console.log(req['express-validator#contexts'])
+  const result = validationResult(req);
+  console.log(result)
   // Find the user using the username
   const foundUser = users.find(user => user.username === req.query.name);
 
@@ -69,12 +79,27 @@ app.get('/api/users', (req, res) => {
 });
 
 // users post request
-app.post('/api/users',middleware2, (req, res)=> {
+app.post('/api/users',middleware2,[
+body('username').notEmpty().withMessage('must not be empty')
+.isLength( { min: 5, max: 15 })
+.withMessage("Username must have minimum length of 5")
+.isString(),
+body('displayname')
+.notEmpty().withMessage('must not be empty')
+]
+, (req, res)=> {
+  const result = validationResult(req)
+  console.log(result)
   console.log(req.body)
-  const {body} = req;
-  const newUser = {id: users[users.length - 1].id + 1, ...body};
-  users.push(newUser);
-  return res.status(201).send(users);
+  const data = matchedData(req)
+  console.log(data)
+  const newUser = {id: users[users.length - 1].id + 1, ...data};
+  if(!result.isEmpty()){
+    return res.status(422).json({errors: result.array()})
+  }else{
+    users.push(newUser)
+    return res.status(201).send(users);
+  }
 })
 
 //find the user by it's id
@@ -87,20 +112,28 @@ app.get('/api/users/:id', (req, res) => {
 });
 
 // put request for updating the object
-app.put('/api/users/:id', (req, res)=> {
-  const {body, params: {id},} = req;
-  
-  users[findUserIndex] = {id: parsedId, ...body };
-  return res.status(200).send(users[findUserIndex]);
+app.put('/api/users/:id', checkSchema(createVlidationSchema),(req, res)=> {
+  const {body, params: {id}} = req;
+  console.log(req)
+  const parsedId = parseInt(id);
+  if (isNaN(parsedId)) return res.status(400).send({ message: "Invalid User ID." });
+  const findUserIndex = users.findIndex(user=> user.id===parsedId);
+  if(findUserIndex===-1){
+    return res.status(404).send({ message:'The user was not found.' });
+  	}else{
+
+      users[findUserIndex] = {id: parsedId, ...body };
+      return res.status(200).send(users[findUserIndex]);
+    }
 });
 
 //patch request for updating partially
 app.patch('/api/users/:id', getUserIndexByUsername, (req,res)=>{
-  const { body, findUserIndex} = req;
-//   const parsedId = parseInt(id);
-//  if(isNaN(parsedId))return res.status(400).send('Invalid Id');
-//  const findUserIndex = users.findIndex(user=> user.id===parsedId);
-//  if(findUserIndex === -1) return res.status(404);
+  const { body } = req;
+  const parsedId = parseInt(id);
+ if(isNaN(parsedId))return res.status(400).send('Invalid Id');
+ const findUserIndex = users.findIndex(user=> user.id===parsedId);
+ if(findUserIndex === -1) return res.status(404);
  users[findUserIndex] = {...users[findUserIndex],...body};
  res.status(200).json(users[findUserIndex])
 });
@@ -108,11 +141,11 @@ app.patch('/api/users/:id', getUserIndexByUsername, (req,res)=>{
 
 //delete a user from array of objects
 app.delete('/api/users/:id', getUserIndexByUsername, (req , res)=> {
-  // const {params : {id}} = req;
-  // const parsedId = parseInt(id);
-  // if(isNaN(parseInt(id))) return res.status(400).send('incalid id');
-  // const findUserIndex = users.indexOf(users.find(user => user.id === parsedId));
-  // if(findUserIndex===-1) return res.status(404).send('not found');
+  const {params : {id}} = req;
+  const parsedId = parseInt(id);
+  if(isNaN(parseInt(id))) return res.status(400).send('incalid id');
+  const findUserIndex = users.indexOf(users.find(user => user.id === parsedId));
+  if(findUserIndex===-1) return res.status(404).send('not found');
   
     users.splice(findUserIndex,1);
     return res.status(200).send(`The user with id ${parsedId} has been deleted`);
