@@ -4,6 +4,8 @@ import queryString from 'query-string';
 import { query, validationResult, body, matchedData, checkSchema } from "express-validator";
 const PORT = process.env.PORT || 3000;
 import { createVlidationSchema } from "./validation/validationShema.js";
+import cookieParser from "cookie-parser";
+import session from "express-session";
 
 
 const users = [
@@ -27,6 +29,15 @@ const products = [
 ]
 
 app.use(express.json());
+app.use(cookieParser());
+app.use(session({
+  secret: "sajid hameed",
+  saveUninitialized: false,
+  resave: false,
+  cookie: {
+    maxAge: 3600
+  },
+}))
 app.use(express.urlencoded({ extended: true }));
 
 // a middleware example it would be used in all routes to log reqest method
@@ -53,6 +64,8 @@ const middleware2 = (req, res, next)=> {
 }
 app.get("/", (req, res) => {
     console.log(req.query);
+    console.log(req.session);
+    console.log(req.session.id)
   res.status(201).send('this is / path')
 });
 
@@ -155,10 +168,26 @@ app.delete('/api/users/:id', getUserIndexByUsername, (req , res)=> {
 
 
 app.get('/api/products', (req, res) => {
+  //cookie example
+  res.cookie('username', 'sajid', { maxAge: 3600, })
+  console.log(req.headers.cookie)
+  console.log(req.cookies)
+  console.log(req.signedCookies);
+  //session example
+  console.log(req.session);
+  console.log(req.session.id)
+  req.session.visited = true;
+  req.sessionStore.get(req.session.id, (err, sessionData) => {
+    if(err){
+      console.log(err);
+      throw err;
+    }
+    console.log(sessionData)
+  })
   const productItem  = req.query.item;
   const findProduct =  products.find((product) => product.item === productItem);
-  if(findProduct) return  res.json(findProduct)
-  else  return res.json({message: "product not found"})
+  if(req.cookies.username && req.cookies.username === 'sajid')return  res.status(200).send(findProduct);
+  else return res.json(products)
 })
 
 app.get('/api/products/:id', (req, res)=> {
@@ -170,6 +199,24 @@ app.get('/api/products/:id', (req, res)=> {
   }else{
     res.json(product)
   }
+})
+
+//session example for new route
+app.post('/api/auth', (req, res) => {
+  const {body: {
+    username, displayname
+  }} = req;
+  
+  const findUser = users.find((user) => user.username === username);
+  if(!findUser || findUser.displayname !== displayname)return res.status(401).send({message: "bad credentials"});
+
+  req.session.user = findUser;
+  return res.status(200).send(findUser)
+})
+app.get('/api/auth/status', (req, res)=> {
+  return req.session.user
+  ? res.status(200).send(req.session.user)
+  :res.status(401).send({message: "not authenticated"})
 })
 
 app.listen(PORT, () => console.log("Server running on port " + PORT));
