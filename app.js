@@ -35,7 +35,7 @@ app.use(session({
   saveUninitialized: false,
   resave: false,
   cookie: {
-    maxAge: 3600
+    maxAge: 360000
   },
 }))
 app.use(express.urlencoded({ extended: true }));
@@ -50,7 +50,7 @@ const middleware1 = (req, res, next)=> {
 const getUserIndexByUsername = (req, res, next)=> {
   const {params : {id}} = req;
   const parsedId = parseInt(id);
-  if(isNaN(parseInt(id))) return res.status(400).send('incalid id');
+  if(isNaN(parseInt(id))) return res.status(400).send('invalid id');
   const findUserIndex = users.indexOf(users.find(user => user.id === parsedId));
   next()
 }
@@ -65,7 +65,8 @@ const middleware2 = (req, res, next)=> {
 app.get("/", (req, res) => {
     console.log(req.query);
     console.log(req.session);
-    console.log(req.session.id)
+    console.log(req.session.id);
+    req.session.visited = true;
   res.status(201).send('this is / path')
 });
 
@@ -170,12 +171,12 @@ app.delete('/api/users/:id', getUserIndexByUsername, (req , res)=> {
 app.get('/api/products', (req, res) => {
   //cookie example
   res.cookie('username', 'sajid', { maxAge: 3600, })
-  console.log(req.headers.cookie)
-  console.log(req.cookies)
-  console.log(req.signedCookies);
+  // console.log(req.headers.cookie)
+  // console.log(req.cookies)
+  // console.log(req.signedCookies);
   //session example
   console.log(req.session);
-  console.log(req.session.id)
+  console.log(req.session.id);
   req.session.visited = true;
   req.sessionStore.get(req.session.id, (err, sessionData) => {
     if(err){
@@ -208,15 +209,39 @@ app.post('/api/auth', (req, res) => {
   }} = req;
   
   const findUser = users.find((user) => user.username === username);
-  if(!findUser || findUser.displayname !== displayname)return res.status(401).send({message: "bad credentials"});
+  if(findUser.displayname !== displayname && findUser.displayname !== displayname)return res.status(401).send({message: "bad credentials"});
 
   req.session.user = findUser;
+  console.log(req.session);
+  console.log(req.session.id)
   return res.status(200).send(findUser)
 })
 app.get('/api/auth/status', (req, res)=> {
-  return req.session.user
-  ? res.status(200).send(req.session.user)
-  :res.status(401).send({message: "not authenticated"})
+  req.sessionStore.get(req.sessionID, (err, session)=> {
+    console.log(session);
+    console.log(req.session.id);
+  })
+  if(req.session.user) return res.status(200).json(req.session.user);
+  else return res.status(401).json({message : "You are unauthorized"});
+  
+})
+
+//cart route
+app.post("/api/cart", (req, res) => {
+if(!req.session.user)  return res.status(403).json("Please login first");
+let {body: item} = req;
+let {cart} = req.session;
+if(cart) {
+  cart.push(item);
+} else {
+  req.session.cart = [item];
+  res.setHeader('Content-Type', 'application/json');
+  res.send(cart);
+}
+});
+app.get("api/cart/status", (req, res) => {
+  if(req.session.user) return res.sendStatus(401);
+  return res.send(req.session.cart || []);
 })
 
 app.listen(PORT, () => console.log("Server running on port " + PORT));
