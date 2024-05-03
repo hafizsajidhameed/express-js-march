@@ -6,6 +6,9 @@ const PORT = process.env.PORT || 3000;
 import { createVlidationSchema } from "./validation/validationShema.js";
 import cookieParser from "cookie-parser";
 import session from "express-session";
+import {passport} from "passport";
+import { Strategy } from "passport-local";
+import {pass} from "./strategies/local-strategy.js"
 
 
 const users = [
@@ -38,7 +41,15 @@ app.use(session({
     maxAge: 360000
   },
 }))
+
+//passport-local
+
+app.use(passport.initialize());
+app.use(passport.session());
+
 app.use(express.urlencoded({ extended: true }));
+//middleware used globly
+app.use(middleware1)
 
 // a middleware example it would be used in all routes to log reqest method
 const middleware1 = (req, res, next)=> {
@@ -54,8 +65,6 @@ const getUserIndexByUsername = (req, res, next)=> {
   const findUserIndex = users.indexOf(users.find(user => user.id === parsedId));
   next()
 }
-//middleware used globly
-app.use(middleware1)
 
 // middleware example2
 const middleware2 = (req, res, next)=> {
@@ -69,6 +78,11 @@ app.get("/", (req, res) => {
     req.session.visited = true;
   res.status(201).send('this is / path')
 });
+
+//passport route
+app.post("/api/passport", passport.authenticate("local"), (req, res) => {
+  res.status(201).send('this is /api/passport path')
+})
 
 app.get('/api/users', query('name')
 .isString()
@@ -213,7 +227,7 @@ app.post('/api/auth', (req, res) => {
 
   req.session.user = findUser;
   console.log(req.session);
-  console.log(req.session.id)
+  console.log(req.session.id )
   return res.status(200).send(findUser)
 })
 app.get('/api/auth/status', (req, res)=> {
@@ -238,10 +252,11 @@ if(cart) {
   res.setHeader('Content-Type', 'application/json');
   res.send(cart);
 }
+return res.status(201).send(item);
 });
-app.get("api/cart/status", (req, res) => {
-  if(req.session.user) return res.sendStatus(401);
-  return res.send(req.session.cart || []);
+app.get("api/cart", (req, res) => {
+  if(!req.session.user) return res.sendStatus(401);
+  return res.send(req.session.cart ?? []);
 })
 
 app.listen(PORT, () => console.log("Server running on port " + PORT));
