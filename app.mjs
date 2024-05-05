@@ -6,12 +6,14 @@ const PORT = process.env.PORT || 3000;
 import { createVlidationSchema } from "./validation/validationShema.js";
 import cookieParser from "cookie-parser";
 import session from "express-session";
-import {passport} from "passport";
-import { Strategy } from "passport-local";
-import {pass} from "./strategies/local-strategy.js"
+// import {passport} from "passport";
+// import { Strategy } from "passport-local";
+const passport = require('passport')
+const strategy = require('passport-local')
+import "./strategies/local-strategy.js"
 
 
-const users = [
+export const  users = [
   { id: 1, username: "sajid", displayname: "Sajid" },
   { id: 2, username: "faizan", displayname: "Faizan" },
   { id: 3, username: "amir", displayname: "Amir" },
