@@ -1,7 +1,12 @@
 import express from "express";
 const app = express();
 import queryString from 'query-string';
+import { query, validationResult, body, matchedData, checkSchema } from "express-validator";
 const PORT = process.env.PORT || 3000;
+import { createVlidationSchema } from "./validation/validationShema.js";
+import cookieParser from "cookie-parser";
+import session from "express-session";
+
 
 const users = [
   { id: 1, username: "sajid", displayname: "Sajid" },
@@ -24,15 +29,55 @@ const products = [
 ]
 
 app.use(express.json());
+app.use(cookieParser());
+app.use(session({
+  secret: "sajid hameed",
+  saveUninitialized: false,
+  resave: false,
+  cookie: {
+    maxAge: 3600
+  },
+}))
 app.use(express.urlencoded({ extended: true }));
 
+// a middleware example it would be used in all routes to log reqest method
+const middleware1 = (req, res, next)=> {
+  console.log(`this is ${req.method} request, and URL ${req.url}`);
+  next()
+}
+
+//middleware for find user index
+const getUserIndexByUsername = (req, res, next)=> {
+  const {params : {id}} = req;
+  const parsedId = parseInt(id);
+  if(isNaN(parseInt(id))) return res.status(400).send('incalid id');
+  const findUserIndex = users.indexOf(users.find(user => user.id === parsedId));
+  next()
+}
+//middleware used globly
+app.use(middleware1)
+
+// middleware example2
+const middleware2 = (req, res, next)=> {
+  console.log('object added into array successfully')
+  next()
+}
 app.get("/", (req, res) => {
     console.log(req.query);
-  res.status(201).send({message : 'Hello World'})
+    console.log(req.session);
+    console.log(req.session.id)
+  res.status(201).send('this is / path')
 });
 
-app.get('/api/users', (req, res) => {
-
+app.get('/api/users', query('name')
+.isString()
+.notEmpty()
+.withMessage('must not be empty')
+.isLength({min: 3, max: 10})
+.withMessage('must be at least 3 characters'), (req, res) => {
+  console.log(req['express-validator#contexts'])
+  const result = validationResult(req);
+  console.log(result)
   // Find the user using the username
   const foundUser = users.find(user => user.username === req.query.name);
 
@@ -47,14 +92,30 @@ app.get('/api/users', (req, res) => {
 });
 
 // users post request
-app.post('/api/users', (req, res)=> {
+app.post('/api/users',middleware2,[
+body('username').notEmpty().withMessage('must not be empty')
+.isLength( { min: 5, max: 15 })
+.withMessage("Username must have minimum length of 5")
+.isString(),
+body('displayname')
+.notEmpty().withMessage('must not be empty')
+]
+, (req, res)=> {
+  const result = validationResult(req)
+  console.log(result)
   console.log(req.body)
-  const {body} = req;
-  const newUser = {id: users[users.length - 1].id + 1, ...body};
-  users.push(newUser);
-  return res.status(201).send(users);
+  const data = matchedData(req)
+  console.log(data)
+  const newUser = {id: users[users.length - 1].id + 1, ...data};
+  if(!result.isEmpty()){
+    return res.status(422).json({errors: result.array()})
+  }else{
+    users.push(newUser)
+    return res.status(201).send(users);
+  }
 })
 
+//find the user by it's id
 app.get('/api/users/:id', (req, res) => {
   const parsedId = parseInt(req.params.id);
   if (isNaN(parsedId)) return res.status(400).send({message: 'bad request, invalid id.'})
@@ -64,46 +125,41 @@ app.get('/api/users/:id', (req, res) => {
 });
 
 // put request for updating the object
-app.put('/api/users/:id', (req, res)=> {
-  const {body, params: {id},} = req;
-  const parsedId  =  parseInt(id);
-  if(isNaN(parsedId)) return res.status(400).send('Bad Request');
+// app.put('/api/users/:id', (req, res)=> {
+//   const {body, params: {id},} = req;
+//   const parsedId  =  parseInt(id);
+//   if(isNaN(parsedId)) return res.status(400).send('Bad Request');
 
-  const findUserIndex = users.findIndex((user)=> user.id === parsedId);
+//   const findUserIndex = users.findIndex((user)=> user.id === parsedId);
 
-  if(findUserIndex === -1 ) return res.status(404).send("Not Found");
-  users[findUserIndex] = {id: parsedId, ...body };
-  return res.status(200).send(users[findUserIndex]);
-})
+//   if(findUserIndex === -1 ) return res.status(404).send("Not Found");
+//   users [findUserIndex] = {id: parsedId, ...body };
+//   return res.status(200).send(users[findUserIndex]);
+// })
 
-//patch request for updating partially
-app.patch('/api/users/:id', (req,res)=>{
-  const { body, params:{id}} = req;
-  const parsedId = parseInt(id);
- if(isNaN(parsedId))return res.status(400).send('Invalid Id');
- const findUserIndex = users.findIndex(user=> user.id===parsedId);
- if(findUserIndex === -1) return res.status(404);
- users[findUserIndex] = {...users[findUserIndex],...body};
- res.status(200).json(users[findUserIndex])
-});
-// delete method to remove an item from array
-app.delete("/api/users/:id", (req, res) =>{
-  const {params: {id}} = req;
-  const parsedId  = parseInt(id);
-  if(isNaN(parseInt(id))) return res.status(400).send("Invalid ID")
-  const findUserIndex = users.indexOf(users.find(user => user.id === parsedId));
-if(findUserIndex === -1) return res.status(404).send("user not found");
-else {
-    users.splice(findUserIndex, 1);
-    res.status(200).send(`The User with the id ${id} has been deleted`)};
-    });
 
 
 app.get('/api/products', (req, res) => {
+  //cookie example
+  res.cookie('username', 'sajid', { maxAge: 3600, })
+  console.log(req.headers.cookie)
+  console.log(req.cookies)
+  console.log(req.signedCookies);
+  //session example
+  console.log(req.session);
+  console.log(req.session.id)
+  req.session.visited = true;
+  req.sessionStore.get(req.session.id, (err, sessionData) => {
+    if(err){
+      console.log(err);
+      throw err;
+    }
+    console.log(sessionData)
+  })
   const productItem  = req.query.item;
   const findProduct =  products.find((product) => product.item === productItem);
-  if(findProduct) return  res.json(findProduct)
-  else  return res.json({message: "product not found"})
+  if(req.cookies.username && req.cookies.username === 'sajid')return  res.status(200).send(findProduct);
+  else return res.json(products)
 })
 
 app.get('/api/products/:id', (req, res)=> {
@@ -115,6 +171,24 @@ app.get('/api/products/:id', (req, res)=> {
   }else{
     res.json(product)
   }
+})
+
+//session example for new route
+app.post('/api/auth', (req, res) => {
+  const {body: {
+    username, displayname
+  }} = req;
+  
+  const findUser = users.find((user) => user.username === username);
+  if(!findUser || findUser.displayname !== displayname)return res.status(401).send({message: "bad credentials"});
+
+  req.session.user = findUser;
+  return res.status(200).send(findUser)
+})
+app.get('/api/auth/status', (req, res)=> {
+  return req.session.user
+  ? res.status(200).send(req.session.user)
+  :res.status(401).send({message: "not authenticated"})
 })
 
 app.listen(PORT, () => console.log("Server running on port " + PORT));
